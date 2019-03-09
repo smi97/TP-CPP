@@ -17,82 +17,67 @@ Memory limit:	64 M
 В случае возникновения ошибки нужно выводить об этом сообщение "[error]" и завершать выполнение программы.
 
 ВАЖНО! Программа в любом случае должна возвращать 0. Не пишите return -1, exit(1) и т.п. Даже если обнаружилась какая-то ошибка, все равно необходимо вернуть 0! (и напечатать [error] в stdout)."
- * "runId": "586"
+ *
+ * runId = 1017
  * */
 
 
-
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-int read_one_string(char **buffer) {
-    int buffer_size = 100, buffer_move = 0, buffer_count = 1;
-    size_t buffer_len = 0;
-    *buffer = (char *) malloc (buffer_size * sizeof (char));
-    if (*buffer == NULL) {
-        return -1;
-    }
-    while (1) {
-
-        if (!fgets (*buffer + buffer_move, buffer_size / buffer_count, stdin)) {
-            return -1;
-        }
-        buffer_len = strlen ((*buffer) + buffer_move);
-        if ((*buffer)[buffer_len + buffer_move - 1] != '\n') {
-            buffer_size *= 2;
-            buffer_count = 2;
-            *buffer = (char *) realloc (*buffer, buffer_size);
-            if (*buffer == NULL) {
-                return -1;
-            }
-            buffer_move += buffer_len;
-        } else {
-            (*buffer)[buffer_len + buffer_move - 1] = '\0';
-            break;
-        }
-    }
-    return 0;
-}
 
 int read_all_strings(char ***strings) {
-    char *buffer;
-    int strings_col = 100;
-    *strings = (char **) malloc (strings_col * sizeof (char *));
+    size_t strings_max_col = 100;
+    size_t string_size = 100;
+    ssize_t getline_result = 0;
+    int strings_amount = 0;
+
+    *strings = (char **) malloc (strings_max_col * sizeof (char *));
     if (*strings == NULL) {
-        if (buffer) free (buffer);
         return 0;
     }
-    int size = 0, flag = 0;
-    int check = read_one_string (&buffer);
-    if (check != -1) {
-        flag = 1;
-        (*strings)[size] = buffer;
-        ++size;
+
+    (*strings)[strings_amount] = (char *) malloc (string_size * sizeof (char));
+    if((*strings)[strings_amount] == NULL) {
+        return 0;
     }
-    while (check != -1) {
-        check = read_one_string (&buffer);
-        if (size == strings_col - 1) {
-            *strings = (char **) realloc (*strings, strings_col * 2 * sizeof (char *));
-            if (*strings == NULL) {
-                if (buffer) free (buffer);
+    getline_result = getline(&(*strings)[strings_amount], &string_size, stdin);
+    while (getline_result != -1) {
+        if (strings_amount == strings_max_col - 1) {
+            char ** temp = (char **) realloc (*strings, strings_max_col * 2 * sizeof (char *));
+            if (*temp == NULL) {
+                return 0;
+            }
+            for(int i = 0; i < strings_amount; ++i) {
+                free ((*strings)[i]);
+            }
+            free(strings);
+            *strings = temp;
+        }
+        ++strings_amount;
+        (*strings)[strings_amount] = (char *) malloc (string_size * sizeof (char));
+        if((*strings)[strings_amount] == NULL) {
+            for(int i = 0; i < strings_amount; ++i) {
+                free ((*strings)[i]);
                 return 0;
             }
         }
-        (*strings)[size] = buffer;
-        ++size;
+        getline_result = getline(&(*strings)[strings_amount], &string_size, stdin);
+        if(getline_result == -1)
+        {
+            free((*strings)[strings_amount]);
+        }
     }
-    if (flag == 0) {
-        return 0;
-    }
-    return size;
+    return strings_amount;
 }
 
 int check_one(char *string) {
-    int iterator = 0, count = 0;
+    int count = 0;
     size_t length = strlen (string);
-    for (iterator = 0; iterator < length; ++iterator) {
+    for (int iterator = 0; iterator < length; ++iterator) {
         if (string[iterator] == '(') {
             ++count;
         }
@@ -110,9 +95,13 @@ int check_one(char *string) {
 }
 
 int check_brackets(char **strings_to_check, int size, char ***result_strings) {
-    int iterator = 0, result_size = 0;
+    int result_size = 0;
     *result_strings = (char **) malloc (size * sizeof (char *));
-    for (iterator = 0; iterator < size; ++iterator) {
+    if(*result_strings == NULL) {
+        printf ("[error]");
+        return 0;
+    }
+    for (int iterator = 0; iterator < size; ++iterator) {
         if (check_one (strings_to_check[iterator]) == 0) {
             (*result_strings)[result_size++] = strings_to_check[iterator];
         }
@@ -122,8 +111,9 @@ int check_brackets(char **strings_to_check, int size, char ***result_strings) {
 
 
 int main() {
-    char **strings, **res;
-    int size = read_all_strings (&strings), i = 0;
+    char **strings = NULL, **res  = NULL;
+    int size = 0;
+    size = read_all_strings (&strings);
     if (size == 0) {
         free (strings);
         printf ("[error]");
@@ -132,19 +122,19 @@ int main() {
 
     int res_size = check_brackets (strings, size, &res);
     if (res == NULL) {
-        for (i = 0; i < size; i++) {
+        for (int i = 0; i < size; i++) {
             free (strings[i]);
         }
         free (strings);
         free (res);
         return 0;
-    } else {
-        for (i = 0; i < res_size; i++) {
-            printf ("%s\n", res[i]);
-        }
+    }
+    for (int i = 0; i < res_size; i++) {
+        printf ("%s", res[i]);
     }
 
-    for (i = 0; i < size; i++) {
+
+    for (int i = 0; i < size; i++) {
         if (strings[i]) free (strings[i]);
     }
     if (strings) free (strings);
